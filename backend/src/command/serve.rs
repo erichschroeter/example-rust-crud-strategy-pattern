@@ -7,7 +7,9 @@ use log::{debug, info};
 use tera::Tera;
 
 use crate::{
-    cfg::{default_config_path, default_template_glob, Cfg}, crud::csv::CsvUserStorage, APP_PREFIX
+    cfg::{default_config_path, default_template_glob, Cfg},
+    crud::csv::CsvUserStorage,
+    APP_PREFIX,
 };
 
 fn run_http_server(cfg: &Cfg) -> std::io::Result<()> {
@@ -15,7 +17,11 @@ fn run_http_server(cfg: &Cfg) -> std::io::Result<()> {
 
     let storage_strategy = match cfg.storage_strategy.as_str() {
         "csv" => {
-            CsvUserStorage::new("users.csv")
+            let storage_path = cfg
+                .storage_path
+                .to_owned()
+                .unwrap_or("users.csv".to_string());
+            CsvUserStorage::new(&storage_path)
         }
         _ => {
             eprintln!("Unknown storage strategy: {strategy}. Falling back to using '{strategy}' strategy.", strategy=cfg.storage_strategy);
@@ -120,6 +126,29 @@ pub fn serve(matches: &ArgMatches) {
         .handle_request("storage_strategy");
     if let Some(storage_strategy) = storage_strategy {
         cfg.storage_strategy = storage_strategy.to_owned();
+    }
+    let storage_path = ArgHandler::new(matches)
+        .next(Box::new(
+            EnvHandler::new().prefix(APP_PREFIX).next(Box::new(
+                ConfigHandler::new(Box::new(
+                    config::Config::builder()
+                        .add_source(config::File::new(&config_path, config::FileFormat::Yaml))
+                        .build()
+                        .unwrap_or_default(),
+                ))
+                .next(Box::new(DefaultHandler::new(
+                    std::env::current_dir()
+                        .unwrap_or_default()
+                        .join("users.csv")
+                        .display()
+                        .to_string()
+                        .as_str(),
+                ))),
+            )),
+        ))
+        .handle_request("storage_path");
+    if let Some(storage_path) = storage_path {
+        cfg.storage_path = Some(storage_path.to_owned());
     }
 
     debug!("{}", cfg);

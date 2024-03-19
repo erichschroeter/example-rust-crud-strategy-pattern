@@ -37,6 +37,7 @@ pub struct Cfg {
     pub port: u16,
     pub template_glob: String,
     pub storage_strategy: String,
+    pub storage_path: Option<String>,
 }
 
 impl Default for Cfg {
@@ -47,6 +48,7 @@ impl Default for Cfg {
             port: 8080,
             template_glob: default_template_glob(),
             storage_strategy: "csv".to_string(),
+            storage_path: None,
         }
     }
 }
@@ -160,6 +162,7 @@ mod tests {
         port: 8080
         template_glob: {}
         storage_strategy: csv
+        storage_path: null
 
         "#,
             default_template_glob()

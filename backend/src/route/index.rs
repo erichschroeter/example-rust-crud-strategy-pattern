@@ -1,12 +1,14 @@
-
 use actix_web::{web, HttpResponse, Responder};
 use tera::Context;
 
-use crate::crud::{UserStorage, csv::CsvUserStorage};
+use crate::crud::{csv::CsvUserStorage, UserStorage};
 
 use super::VERSION;
 
-pub async fn index(tmpl: web::Data<tera::Tera>, storage: web::Data<CsvUserStorage>) -> impl Responder {
+pub async fn index(
+    tmpl: web::Data<tera::Tera>,
+    storage: web::Data<CsvUserStorage>,
+) -> impl Responder {
     let users = storage.read_all().unwrap_or_default();
     let mut ctx = Context::new();
     ctx.insert("version", &VERSION);
