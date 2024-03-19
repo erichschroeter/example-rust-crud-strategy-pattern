@@ -10,6 +10,7 @@ The `backend` handles storing the CRUD storage.
 
 ### Frontend
 The `frontend` handles the user interface to the `backend`.
+[Tera](https://keats.github.io/tera/) is used for server-side templating web pages.
 
 # Building
 

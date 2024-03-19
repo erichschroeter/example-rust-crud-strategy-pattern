@@ -1,5 +1,6 @@
 mod cfg;
 mod command;
+mod crud;
 mod route;
 
 use cfg::default_config_path;

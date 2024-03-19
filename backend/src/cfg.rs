@@ -36,6 +36,7 @@ pub struct Cfg {
     pub address: String,
     pub port: u16,
     pub template_glob: String,
+    pub storage_strategy: String,
 }
 
 impl Default for Cfg {
@@ -45,6 +46,7 @@ impl Default for Cfg {
             address: "0.0.0.0".to_string(),
             port: 8080,
             template_glob: default_template_glob(),
+            storage_strategy: "csv".to_string(),
         }
     }
 }
