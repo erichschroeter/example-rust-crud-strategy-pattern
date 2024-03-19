@@ -159,6 +159,7 @@ mod tests {
         address: 0.0.0.0
         port: 8080
         template_glob: {}
+        storage_strategy: csv
 
         "#,
             default_template_glob()
