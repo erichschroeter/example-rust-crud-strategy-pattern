@@ -22,3 +22,9 @@ sudo apt install build-essential
 ```bash
 cargo build
 ```
+
+# Run
+
+```bash
+ls target/debug/backend backend/templates/* | entr -rz cargo run -- -v trace serve
+```
