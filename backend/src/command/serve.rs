@@ -11,15 +11,6 @@ use crate::{
 
 fn run_http_server(cfg: &Cfg) -> std::io::Result<()> {
     info!("Running HTTP Server at http://{}:{}", cfg.address, cfg.port);
-    // let template_dir = cfg
-    //     .template_dir
-    //     .clone()
-    //     .into_os_string()
-    //     .into_string()
-    //     .unwrap();
-    // // let tera = Tera::new(&Path::new(&template_dir).join("/**/*").display().to_string()).unwrap();
-    // // let template_dir = Arc::new(template_dir);
-    // let tera = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
     let tera = Tera::new(&cfg.template_glob).unwrap();
     let server = HttpServer::new(move || {
         actix_web::App::new()
