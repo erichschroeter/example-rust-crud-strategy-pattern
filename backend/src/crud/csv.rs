@@ -1,7 +1,7 @@
 use std::{
     error::Error,
-    fs::File,
-    io::{BufRead, BufReader, Read, Write},
+    fs::{File, OpenOptions},
+    io::{BufRead, BufReader, Read, Write}, path::Path,
 };
 
 use common::User;
@@ -23,13 +23,16 @@ impl CsvUserStorage {
 
 impl UserStorage for CsvUserStorage {
     fn create(&mut self, user: &User) -> Result<(), Box<dyn Error>> {
-        let mut file = File::open(&self.filename)?;
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)?;
-
-        let mut file = File::create(&self.filename)?;
-        file.write_all(format!("{}\n", user.fullname).as_bytes())?;
-        Ok(())
+        let mut file = if Path::new(&self.filename).exists() {
+            OpenOptions::new().write(true).append(true).open(&self.filename).unwrap()
+        } else {
+            OpenOptions::new().create_new(true).write(true).open(&self.filename).unwrap()
+        };
+        if let Err(e) = writeln!(file, "{}", user.fullname) {
+            Err(Box::new(e))
+        } else {
+            Ok(())
+        }
     }
 
     fn read_all(&self) -> Result<Vec<User>, Box<dyn Error>> {

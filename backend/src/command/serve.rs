@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use actix_web::{rt, web, HttpServer};
 use clap::ArgMatches;
@@ -15,7 +15,7 @@ use crate::{
 fn run_http_server(cfg: &Cfg) -> std::io::Result<()> {
     info!("Running HTTP Server at http://{}:{}", cfg.address, cfg.port);
 
-    let storage_strategy = match cfg.storage_strategy.as_str() {
+    let storage = match cfg.storage_strategy.as_str() {
         "csv" => {
             let storage_path = cfg
                 .storage_path
@@ -28,13 +28,15 @@ fn run_http_server(cfg: &Cfg) -> std::io::Result<()> {
             CsvUserStorage::new("users.csv")
         }
     };
-    let storage_strategy: web::Data<CsvUserStorage> = web::Data::from(Arc::new(storage_strategy));
+    let storage = Arc::new(Mutex::new(storage));
     let tera = Tera::new(&cfg.template_glob).unwrap();
     let server = HttpServer::new(move || {
         actix_web::App::new()
             .app_data(web::Data::new(tera.clone()))
-            .app_data(storage_strategy.clone())
+            .app_data(web::Data::new(storage.clone()))
             .route("/", web::get().to(crate::route::index::index))
+            .route("/user", web::get().to(crate::route::user::list_users))
+            .route("/user/new", web::post().to(crate::route::user::create_user))
     })
     .bind((cfg.address.as_str(), cfg.port));
 

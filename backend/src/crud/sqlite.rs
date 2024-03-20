@@ -27,7 +27,7 @@ impl UserStorage for SqliteUserStorage {
     fn create(&mut self, user: &User) -> Result<(), Box<dyn Error>> {
         let connection = Connection::open(&self.filename).unwrap();
         let query = "
-            CREATE TABLE users (
+            CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY,
                 fullname TEXT
             );

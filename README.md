@@ -30,3 +30,8 @@ cargo build
 ```bash
 ls target/debug/backend backend/templates/* | entr -rz cargo run -- -v trace serve
 ```
+
+#### Create a user
+```bash
+curl -X POST -H "Content-Type: application/json" --data '{"fullname":"Erich Schroeter"}' http://127.0.0.1:8080/user/new
+```
