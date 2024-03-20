@@ -3,6 +3,9 @@ mod command;
 mod crud;
 mod route;
 
+#[cfg(all(feature = "csv", feature = "sqlite"))]
+compile_error!("feature \"csv\" and feature \"sqlite\" cannot be enabled at the same time");
+
 use cfg::default_config_path;
 use clap::{value_parser, Arg};
 use cor_args::{ArgHandler, ConfigHandler, DefaultHandler, EnvHandler, FileHandler, Handler};

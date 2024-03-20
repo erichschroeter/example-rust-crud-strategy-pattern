@@ -6,34 +6,47 @@ use cor_args::{ArgHandler, ConfigHandler, DefaultHandler, EnvHandler, Handler};
 use log::{debug, info};
 use tera::Tera;
 
+#[cfg(feature = "csv")]
+use crate::crud::csv::CsvUserStore;
+#[cfg(feature = "sqlite")]
+use crate::crud::sqlite::SqliteUserStore;
 use crate::{
     cfg::{default_config_path, default_template_glob, Cfg},
-    crud::csv::CsvUserStorage,
     APP_PREFIX,
 };
+
+#[cfg(feature = "sqlite")]
+fn create_store(cfg: &Cfg) -> Mutex<SqliteUserStore> {
+    let storage_path = cfg
+        .storage_path
+        .to_owned()
+        .unwrap_or("users.csv".to_string());
+    Mutex::new(SqliteUserStorage::new(&storage_path))
+}
+
+#[cfg(feature = "csv")]
+fn create_store(cfg: &Cfg) -> Mutex<CsvUserStore> {
+    let storage_path = cfg
+        .storage_path
+        .to_owned()
+        .unwrap_or("users.csv".to_string());
+    Mutex::new(CsvUserStore::new(&storage_path))
+}
 
 fn run_http_server(cfg: &Cfg) -> std::io::Result<()> {
     info!("Running HTTP Server at http://{}:{}", cfg.address, cfg.port);
 
-    let storage = match cfg.storage_strategy.as_str() {
-        "csv" => {
-            let storage_path = cfg
-                .storage_path
-                .to_owned()
-                .unwrap_or("users.csv".to_string());
-            CsvUserStorage::new(&storage_path)
-        }
-        _ => {
-            eprintln!("Unknown storage strategy: {strategy}. Falling back to using '{strategy}' strategy.", strategy=cfg.storage_strategy);
-            CsvUserStorage::new("users.csv")
-        }
-    };
-    let storage = Arc::new(Mutex::new(storage));
+    // let storage_path = cfg
+    //     .storage_path
+    //     .to_owned()
+    //     .unwrap_or("users.csv".to_string());
+    // let storage = Arc::new(Mutex::new(CsvUserStore::new(&storage_path)));
+    let storage = Arc::new(create_store(cfg));
     let tera = Tera::new(&cfg.template_glob).unwrap();
     let server = HttpServer::new(move || {
         actix_web::App::new()
             .app_data(web::Data::new(tera.clone()))
-            .app_data(web::Data::new(storage.clone()))
+            .app_data(web::Data::from(storage.clone()))
             .route("/", web::get().to(crate::route::index::index))
             .route("/user", web::get().to(crate::route::user::list_users))
             .route("/user/new", web::post().to(crate::route::user::create_user))

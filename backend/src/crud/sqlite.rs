@@ -3,7 +3,7 @@ use std::error::Error;
 use common::User;
 use rusqlite::Connection;
 
-use super::UserStorage;
+use super::{Crud, CrudError};
 
 struct SqliteUser {
     id: u64,
@@ -23,8 +23,8 @@ impl SqliteUserStorage {
     }
 }
 
-impl UserStorage for SqliteUserStorage {
-    fn create(&mut self, user: &User) -> Result<(), Box<dyn Error>> {
+impl Crud<User> for SqliteUserStorage {
+    fn create(&mut self, user: &User) -> Result<(), CrudError> {
         let connection = Connection::open(&self.filename).unwrap();
         let query = "
             CREATE TABLE IF NOT EXISTS users (
@@ -38,7 +38,7 @@ impl UserStorage for SqliteUserStorage {
         Ok(())
     }
 
-    fn read_all(&self) -> Result<Vec<User>, Box<dyn Error>> {
+    fn read_all(&self) -> Result<Vec<User>, CrudError> {
         log::debug!("Reading all Users from '{}'", &self.filename);
         let connection = Connection::open(&self.filename).unwrap();
         let query = "SELECT id, fullname FROM users";
