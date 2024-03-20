@@ -3,6 +3,7 @@ use std::error::Error;
 use common::User;
 
 pub mod csv;
+pub mod sqlite;
 
 pub trait UserStorage: Send + Clone {
     fn create(&mut self, user: &User) -> Result<(), Box<dyn Error>>;

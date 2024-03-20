@@ -17,6 +17,8 @@ The `frontend` handles the user interface to the `backend`.
 1. Install dev dependencies
 ```bash
 sudo apt install build-essential
+# If using SQLite backend
+sudo apt install libsqlite3-dev
 ```
 1. Build
 ```bash
