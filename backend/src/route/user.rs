@@ -4,13 +4,13 @@ use actix_web::{web, HttpResponse, Responder};
 use common::User;
 use tera::Context;
 
-use crate::crud::{csv::CsvUserStore, Crud};
+use crate::crud::Crud;
 
 use super::{BACKEND_STRATEGY, VERSION};
 
 pub async fn list_users(
     tmpl: web::Data<tera::Tera>,
-    storage: web::Data<Mutex<CsvUserStore>>,
+    storage: web::Data<Mutex<dyn Crud<User>>>,
 ) -> impl Responder {
     if let Ok(storage) = storage.lock() {
         let users = storage.read_all().unwrap_or_default();
@@ -28,7 +28,7 @@ pub async fn list_users(
 
 pub async fn create_user(
     user: web::Json<User>,
-    storage: web::Data<Mutex<CsvUserStore>>,
+    storage: web::Data<Mutex<dyn Crud<User>>>,
 ) -> impl Responder {
     let response = &user.0;
     if let Ok(mut storage) = storage.lock() {

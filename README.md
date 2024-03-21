@@ -33,5 +33,5 @@ ls target/debug/backend backend/templates/* | entr -rz cargo run -- -v trace ser
 
 #### Create a user
 ```bash
-curl -X POST -H "Content-Type: application/json" --data '{"fullname":"Erich Schroeter"}' http://127.0.0.1:8080/user/new
+curl -X POST -H "Content-Type: application/json" --data '{"fullname":"Erich Schroeter"}' http://127.0.0.1:8080/user/create
 ```

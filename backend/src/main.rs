@@ -145,9 +145,6 @@ impl App {
                                 .value_name("DIR")
                                 .help("Directory path to where HTML templates are stored"),
                         ),
-                )
-                .subcommand(
-                    clap::Command::new("generate-manifest").about("Generates a manifest file"),
                 ),
         }
     }

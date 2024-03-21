@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use actix_web::{rt, web, HttpServer};
 use clap::ArgMatches;
+use common::User;
 use cor_args::{ArgHandler, ConfigHandler, DefaultHandler, EnvHandler, Handler};
 use log::{debug, info};
 use tera::Tera;
@@ -12,17 +13,9 @@ use crate::crud::csv::CsvUserStore;
 use crate::crud::sqlite::SqliteUserStore;
 use crate::{
     cfg::{default_config_path, default_template_glob, Cfg},
+    crud::Crud,
     APP_PREFIX,
 };
-
-#[cfg(feature = "sqlite")]
-fn create_store(cfg: &Cfg) -> Mutex<SqliteUserStore> {
-    let storage_path = cfg
-        .storage_path
-        .to_owned()
-        .unwrap_or("users.csv".to_string());
-    Mutex::new(SqliteUserStorage::new(&storage_path))
-}
 
 #[cfg(feature = "csv")]
 fn create_store(cfg: &Cfg) -> Mutex<CsvUserStore> {
@@ -33,23 +26,30 @@ fn create_store(cfg: &Cfg) -> Mutex<CsvUserStore> {
     Mutex::new(CsvUserStore::new(&storage_path))
 }
 
-fn run_http_server(cfg: &Cfg) -> std::io::Result<()> {
-    info!("Running HTTP Server at http://{}:{}", cfg.address, cfg.port);
+#[cfg(feature = "sqlite")]
+fn create_store(cfg: &Cfg) -> Mutex<SqliteUserStore> {
+    let storage_path = cfg
+        .storage_path
+        .to_owned()
+        .unwrap_or("users.sqlite".to_string());
+    Mutex::new(SqliteUserStore::new(&storage_path))
+}
 
-    // let storage_path = cfg
-    //     .storage_path
-    //     .to_owned()
-    //     .unwrap_or("users.csv".to_string());
-    // let storage = Arc::new(Mutex::new(CsvUserStore::new(&storage_path)));
-    let storage = Arc::new(create_store(cfg));
+fn run_http_server(cfg: Cfg) -> std::io::Result<()> {
+    info!("Running HTTP Server at http://{}:{}", cfg.address, cfg.port);
+    let cfg_clone = cfg.clone();
     let tera = Tera::new(&cfg.template_glob).unwrap();
     let server = HttpServer::new(move || {
+        let storage: Arc<Mutex<dyn Crud<User>>> = Arc::new(create_store(&cfg_clone));
         actix_web::App::new()
             .app_data(web::Data::new(tera.clone()))
-            .app_data(web::Data::from(storage.clone()))
+            .app_data(web::Data::from(storage))
             .route("/", web::get().to(crate::route::index::index))
             .route("/user", web::get().to(crate::route::user::list_users))
-            .route("/user/new", web::post().to(crate::route::user::create_user))
+            .route(
+                "/user/create",
+                web::post().to(crate::route::user::create_user),
+            )
     })
     .bind((cfg.address.as_str(), cfg.port));
 
@@ -126,48 +126,58 @@ pub fn serve(matches: &ArgMatches) {
     }
 
     // Validate the Storage strategy here before calling `run_http_server` to avoid runtime erros there.
-    let storage_strategy = ArgHandler::new(matches)
-        .next(Box::new(
-            EnvHandler::new().prefix(APP_PREFIX).next(Box::new(
-                ConfigHandler::new(Box::new(
-                    config::Config::builder()
-                        .add_source(config::File::new(&config_path, config::FileFormat::Yaml))
-                        .build()
-                        .unwrap_or_default(),
-                ))
-                .next(Box::new(DefaultHandler::new("csv"))),
-            )),
-        ))
-        .handle_request("storage_strategy");
-    if let Some(storage_strategy) = storage_strategy {
-        cfg.storage_strategy = storage_strategy.to_owned();
-    }
-    let storage_path = ArgHandler::new(matches)
-        .next(Box::new(
-            EnvHandler::new().prefix(APP_PREFIX).next(Box::new(
-                ConfigHandler::new(Box::new(
-                    config::Config::builder()
-                        .add_source(config::File::new(&config_path, config::FileFormat::Yaml))
-                        .build()
-                        .unwrap_or_default(),
-                ))
-                .next(Box::new(DefaultHandler::new(
-                    std::env::current_dir()
-                        .unwrap_or_default()
-                        .join("users.csv")
-                        .display()
-                        .to_string()
-                        .as_str(),
-                ))),
-            )),
-        ))
-        .handle_request("storage_path");
-    if let Some(storage_path) = storage_path {
-        cfg.storage_path = Some(storage_path.to_owned());
+    if cfg!(feature = "csv") {
+        let storage_path = ArgHandler::new(matches)
+            .next(Box::new(
+                EnvHandler::new().prefix(APP_PREFIX).next(Box::new(
+                    ConfigHandler::new(Box::new(
+                        config::Config::builder()
+                            .add_source(config::File::new(&config_path, config::FileFormat::Yaml))
+                            .build()
+                            .unwrap_or_default(),
+                    ))
+                    .next(Box::new(DefaultHandler::new(
+                        std::env::current_dir()
+                            .unwrap_or_default()
+                            .join("users.csv")
+                            .display()
+                            .to_string()
+                            .as_str(),
+                    ))),
+                )),
+            ))
+            .handle_request("storage_path");
+        if let Some(storage_path) = storage_path {
+            cfg.storage_path = Some(storage_path.to_owned());
+        }
+    } else if cfg!(feature = "sqlite") {
+        let storage_path = ArgHandler::new(matches)
+            .next(Box::new(
+                EnvHandler::new().prefix(APP_PREFIX).next(Box::new(
+                    ConfigHandler::new(Box::new(
+                        config::Config::builder()
+                            .add_source(config::File::new(&config_path, config::FileFormat::Yaml))
+                            .build()
+                            .unwrap_or_default(),
+                    ))
+                    .next(Box::new(DefaultHandler::new(
+                        std::env::current_dir()
+                            .unwrap_or_default()
+                            .join("users.sqlite")
+                            .display()
+                            .to_string()
+                            .as_str(),
+                    ))),
+                )),
+            ))
+            .handle_request("storage_path");
+        if let Some(storage_path) = storage_path {
+            cfg.storage_path = Some(storage_path.to_owned());
+        }
     }
 
     debug!("{}", cfg);
-    match run_http_server(&cfg) {
+    match run_http_server(cfg) {
         Ok(_) => {}
         Err(_) => {}
     }

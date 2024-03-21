@@ -3,9 +3,19 @@ pub mod csv;
 #[cfg(feature = "sqlite")]
 pub mod sqlite;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+// #[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum CrudError {
     UnknownError,
+    #[cfg(feature = "sqlite")]
+    SqliteError(rusqlite::Error),
+}
+
+#[cfg(feature = "sqlite")]
+impl From<rusqlite::Error> for CrudError {
+    fn from(err: rusqlite::Error) -> Self {
+        CrudError::SqliteError(err)
+    }
 }
 
 impl std::error::Error for CrudError {}

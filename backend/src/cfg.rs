@@ -30,13 +30,12 @@ impl clap::ValueEnum for CfgOutputFormat {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Cfg {
     pub verbose: String,
     pub address: String,
     pub port: u16,
     pub template_glob: String,
-    pub storage_strategy: String,
     pub storage_path: Option<String>,
 }
 
@@ -47,7 +46,9 @@ impl Default for Cfg {
             address: "0.0.0.0".to_string(),
             port: 8080,
             template_glob: default_template_glob(),
-            storage_strategy: "csv".to_string(),
+            #[cfg(feature = "csv")]
+            storage_path: None,
+            #[cfg(feature = "sqlite")]
             storage_path: None,
         }
     }
@@ -161,7 +162,6 @@ mod tests {
         address: 0.0.0.0
         port: 8080
         template_glob: {}
-        storage_strategy: csv
         storage_path: null
 
         "#,
