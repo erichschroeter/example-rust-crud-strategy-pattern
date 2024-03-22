@@ -9,7 +9,7 @@ compile_error!("feature \"csv\" and feature \"sqlite\" cannot be enabled at the 
 use cfg::default_config_path;
 use clap::{value_parser, Arg};
 use cor_args::{ArgHandler, ConfigHandler, DefaultHandler, EnvHandler, FileHandler, Handler};
-use log::{debug, error, info, trace, warn, LevelFilter};
+use log::LevelFilter;
 use std::path::PathBuf;
 
 pub const APP_NAME: &str = "example-rust-crud-strategy-pattern";
@@ -54,12 +54,6 @@ fn setup_logging(verbosity: &str) {
     env_logger::builder()
         .filter(None, verbosity.parse().unwrap_or(LevelFilter::Info))
         .init();
-
-    error!("log level enabled: error");
-    warn!("log level enabled: warn");
-    info!("log level enabled: info");
-    debug!("log level enabled: debug");
-    trace!("log level enabled: trace");
 }
 
 // async fn index() -> impl Responder {
