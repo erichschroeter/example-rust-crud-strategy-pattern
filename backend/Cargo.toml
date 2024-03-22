@@ -28,10 +28,11 @@ tera = "1.19.0"
 toml = "0.7.6"
 
 [dev-dependencies]
+tempfile = "3.10.1"
 unindent = "0.2.3"
 
 [features]
-default = ["sqlite"]
-# default = ["csv"]
+# default = ["sqlite"]
+default = ["csv"]
 csv = []
 sqlite = ["dep:rusqlite"]
