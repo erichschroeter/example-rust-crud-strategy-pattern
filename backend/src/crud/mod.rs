@@ -9,7 +9,6 @@ pub type Result<T> = std::result::Result<T, CrudError>;
 #[derive(Debug)]
 pub enum CrudError {
     UnknownError,
-    NotFound,
     IO(std::io::Error),
     #[cfg(feature = "sqlite")]
     SqliteError(rusqlite::Error),
