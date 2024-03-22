@@ -84,7 +84,7 @@ impl Crud<User> for CsvUserStore {
     }
 
     fn delete(&mut self, item: &User) -> super::Result<()> {
-        delete_line(&self.filename, &item.fullname)
+        delete_line(&self.filename, &item)
     }
 }
 
@@ -137,18 +137,18 @@ fn update_line(path: &str, user: &User) -> super::Result<CsvUser> {
     })
 }
 
-fn delete_line(path: &str, username: &str) -> super::Result<()> {
+fn delete_line(path: &str, user: &User) -> super::Result<()> {
     // Open file in read mode
     let file = File::open(path)?;
     let reader = BufReader::new(&file);
     // Create temp file to write modified content
     let tempfile_path = format!("{}.tmp", path);
     let mut tempfile = File::create(&tempfile_path)?;
-    // Iterate line by line, skipping the line that matches the username
+    // Iterate line by line, skipping the line that matches the uuid
     let mut line_count = 0;
     for line in reader.lines() {
         let line = line?;
-        if !line.contains(username) {
+        if !line.contains(&user.id.to_string()) {
             writeln!(tempfile, "{}", line)?;
         } else {
             log::debug!("Deleted line {}", line_count)
@@ -168,6 +168,7 @@ mod tests {
     use std::fs::File;
 
     use tempfile::tempdir;
+    use uuid::uuid;
 
     use super::CsvUserStore;
 
@@ -257,9 +258,10 @@ mod tests {
         let csv_path = dir.path().join("users.csv");
         let mut csv =
             File::create(&csv_path).expect(&format!("Failed to create {}", &csv_path.display()));
-        writeln!(csv, "Test User").expect(&format!("Failed to write to {}", &csv_path.display()));
+        writeln!(csv, "67e55044-10b1-426f-9247-bb680e5fe0c8,Test User").expect(&format!("Failed to write to {}", &csv_path.display()));
         let mut store = CsvUserStore::new(csv_path.display().to_string().as_str());
-        let user = User::new("Test User");
+        let mut user = User::new("Test User");
+        user.id = uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8");
         store.delete(&user).expect("Failed to delete User");
         assert_eq!(
             count_lines(csv_path.display().to_string().as_str())
@@ -274,10 +276,11 @@ mod tests {
         let csv_path = dir.path().join("users.csv");
         let mut csv =
             File::create(&csv_path).expect(&format!("Failed to create {}", &csv_path.display()));
-        writeln!(csv, "Test User 1\nTest User 2")
+        writeln!(csv, "67e55044-10b1-426f-9247-bb680e5fe0c8,Test User 1\n67e55044-10b1-426f-9247-bb680e5fe0c9,Test User 2")
             .expect(&format!("Failed to write to {}", &csv_path.display()));
         let mut store = CsvUserStore::new(csv_path.display().to_string().as_str());
-        let user = User::new("Test User 1");
+        let mut user = User::new("Test User 1");
+        user.id = uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8");
         store.delete(&user).expect("Failed to delete User");
         assert_eq!(
             count_lines(csv_path.display().to_string().as_str())
