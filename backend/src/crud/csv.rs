@@ -5,6 +5,7 @@ use std::{
 };
 
 use common::User;
+use uuid::Uuid;
 
 use super::{Crud, CrudError};
 
@@ -36,7 +37,7 @@ impl CsvUserStore {
 }
 
 impl Crud<User> for CsvUserStore {
-    fn create(&mut self, user: &User) -> Result<(), CrudError> {
+    fn create(&mut self, user: &User) -> super::Result<()> {
         let mut file = if Path::new(&self.filename).exists() {
             OpenOptions::new()
                 .write(true)
@@ -57,7 +58,7 @@ impl Crud<User> for CsvUserStore {
         }
     }
 
-    fn read_all(&self) -> Result<Vec<User>, CrudError> {
+    fn read_all(&self) -> super::Result<Vec<User>> {
         log::debug!("Reading Users from '{}'", &self.filename);
         let file = if Path::new(&self.filename).exists() {
             OpenOptions::new().read(true).open(&self.filename).unwrap()
@@ -70,34 +71,70 @@ impl Crud<User> for CsvUserStore {
 
         for line in reader.lines() {
             if let Ok(fullname) = line {
-                users.push(User { fullname });
+                users.push(User::new(&fullname));
             }
         }
         log::debug!("Read {} Users from '{}'", users.len(), &self.filename);
         Ok(users)
     }
+    
+    fn update(&mut self, item: &User) -> super::Result<()> {
+        let item = update_line(&self.filename, item)?;
+        Ok(())
+    }
 
-    fn delete(&mut self, item: &User) -> Result<(), CrudError> {
+    fn delete(&mut self, item: &User) -> super::Result<()> {
         delete_line(&self.filename, &item.fullname)
     }
 }
 
-#[allow(dead_code)]
-fn find_entry(path: &str, username: &str) -> super::Result<CsvUser> {
+// fn find_entry(path: &str, uuid: Uuid) -> super::Result<CsvUser> {
+//     let file = File::open(path)?;
+//     let reader = BufReader::new(&file);
+//     let mut line_count = 0;
+//     for line in reader.lines() {
+//         let line = line?;
+//         if line.contains(&uuid.to_string()) {
+//             return Ok(CsvUser {
+//                 line: line_count,
+//                 user: User::new(&line),
+//             });
+//         }
+//         line_count += 1;
+//     }
+//     Err(CrudError::NotFound)
+// }
+
+fn update_line(path: &str, user: &User) -> super::Result<CsvUser> {
+    // Open file in read mode
     let file = File::open(path)?;
     let reader = BufReader::new(&file);
+    // Create temp file to write modified content
+    let tempfile_path = format!("{}.tmp", path);
+    let mut tempfile = File::create(&tempfile_path)?;
+    // Iterate line by line, skipping the line that matches the username
     let mut line_count = 0;
+    let mut line_updated = 0;
     for line in reader.lines() {
         let line = line?;
-        if line.contains(username) {
-            return Ok(CsvUser {
-                line: line_count,
-                user: User::new(&line),
-            });
+        if !line.contains(&user.id.to_string()) {
+            writeln!(tempfile, "{}", line)?;
+        } else {
+            writeln!(tempfile, "{}", user.to_csv())?;
+            line_updated = line_count;
+            log::debug!("Updated line {}", line_count)
         }
         line_count += 1;
     }
-    Err(CrudError::NotFound)
+    // Truncate the original file and copy the modified content from temp file
+    let mut file = File::create(path)?;
+    file.seek(std::io::SeekFrom::Start(0))?;
+    std::io::copy(&mut File::open(&tempfile_path)?, &mut file)?;
+    std::fs::remove_file(&tempfile_path)?;
+    Ok(CsvUser {
+        line: line_updated,
+        user: user.to_owned(),
+    })
 }
 
 fn delete_line(path: &str, username: &str) -> super::Result<()> {
@@ -139,11 +176,22 @@ mod tests {
     fn count_lines(path: &str) -> std::io::Result<usize> {
         let mut count = 0;
         for line in std::io::BufReader::new(std::fs::File::open(&path)?).lines() {
-            println!("line {}: {:?}", count, &line);
             line?;
             count += 1;
         }
         Ok(count)
+    }
+
+    fn read_line(path: &str, line_no: usize) ->std::io::Result<String> {
+        let mut count = 0;
+        for line in std::io::BufReader::new(std::fs::File::open(&path)?).lines() {
+            let line = line?;
+            if count == line_no {
+                return Ok(line)
+            }
+            count += 1;
+        }
+        Err(std::io::Error::new(std::io::ErrorKind::NotFound, format!("File only {} lines", count)))
     }
 
     #[test]
@@ -186,6 +234,21 @@ mod tests {
         let users = store.read_all().expect("Failed to read Users");
         assert_eq!(users.len(), 1);
         assert_eq!(users.get(0).unwrap().fullname, "Test User");
+    }
+
+    #[test]
+    fn update_one_of_one() {
+        let dir = tempdir().expect("Failed to create temp directory");
+        let csv_path = dir.path().join("users.csv");
+        let mut csv =
+            File::create(&csv_path).expect(&format!("Failed to create {}", &csv_path.display()));
+        writeln!(csv, "67e55044-10b1-426f-9247-bb680e5fe0c8,Test User").expect(&format!("Failed to write to {}", &csv_path.display()));
+        let mut store = CsvUserStore::new(csv_path.display().to_string().as_str());
+        let mut user_updated = User::new("Modified User");
+        user_updated.id = uuid::uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8");
+        store.update(&user_updated).expect("Failed to update User");
+        let actual_line = read_line(csv_path.display().to_string().as_str(), 0).expect(&format!("Failed to read line 0 from {}", &csv_path.display()));
+        assert_eq!(actual_line, "67e55044-10b1-426f-9247-bb680e5fe0c8,Modified User");
     }
 
     #[test]

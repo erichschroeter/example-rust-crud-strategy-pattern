@@ -45,5 +45,6 @@ impl std::fmt::Display for CrudError {
 pub trait Crud<T> {
     fn create(&mut self, item: &T) -> Result<()>;
     fn read_all(&self) -> Result<Vec<T>>;
+    fn update(&mut self, item: &T) -> Result<()>;
     fn delete(&mut self, item: &T) -> Result<()>;
 }
