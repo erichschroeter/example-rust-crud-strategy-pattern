@@ -253,6 +253,21 @@ mod tests {
     }
 
     #[test]
+    fn update_one_of_two() {
+        let dir = tempdir().expect("Failed to create temp directory");
+        let csv_path = dir.path().join("users.csv");
+        let mut csv =
+            File::create(&csv_path).expect(&format!("Failed to create {}", &csv_path.display()));
+        writeln!(csv, "67e55044-10b1-426f-9247-bb680e5fe0c8,Test User 1\n67e55044-10b1-426f-9247-bb680e5fe0c9,Test User 2").expect(&format!("Failed to write to {}", &csv_path.display()));
+        let mut store = CsvUserStore::new(csv_path.display().to_string().as_str());
+        let mut user_updated = User::new("Modified User 1");
+        user_updated.id = uuid::uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8");
+        store.update(&user_updated).expect("Failed to update User");
+        let actual_line = read_line(csv_path.display().to_string().as_str(), 0).expect(&format!("Failed to read line 0 from {}", &csv_path.display()));
+        assert_eq!(actual_line, "67e55044-10b1-426f-9247-bb680e5fe0c8,Modified User 1");
+    }
+
+    #[test]
     fn delete_one_of_one() {
         let dir = tempdir().expect("Failed to create temp directory");
         let csv_path = dir.path().join("users.csv");
