@@ -95,7 +95,7 @@ pub fn write_cfg(out: &mut dyn Write, settings: &Cfg, fmt: &CfgOutputFormat) {
 /// Returns the default configuration file path for the FIXME.
 ///
 /// The default configuration file path is determined by appending
-/// `".config/FIXME/default.yaml"` to the user's home directory.
+/// `".config/FIXME/default.yaml"` to the account's home directory.
 ///
 /// # Examples
 ///
@@ -108,7 +108,7 @@ pub fn write_cfg(out: &mut dyn Write, settings: &Cfg, fmt: &CfgOutputFormat) {
 ///
 /// # Errors
 ///
-/// This function will panic if it fails to retrieve the user's home directory
+/// This function will panic if it fails to retrieve the account's home directory
 /// using the `UserDirs` struct from the `directories` crate.
 ///
 /// # Returns
@@ -118,18 +118,18 @@ pub fn write_cfg(out: &mut dyn Write, settings: &Cfg, fmt: &CfgOutputFormat) {
 /// # Safety
 ///
 /// This function assumes that the `UserDirs` struct from the `directories` crate
-/// is capable of correctly retrieving the user's home directory.
+/// is capable of correctly retrieving the account's home directory.
 ///
 /// # Dependencies
 ///
 /// This function depends on the following crates:
 ///
 /// - `std::path::PathBuf` - For manipulating file paths.
-/// - `directories` - For retrieving the user's home directory.
+/// - `directories` - For retrieving the account's home directory.
 ///
 /// # Panics
 ///
-/// This function will panic if it fails to retrieve the user's home directory.
+/// This function will panic if it fails to retrieve the account's home directory.
 ///
 /// # Notes
 ///

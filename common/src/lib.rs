@@ -4,14 +4,14 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct User {
+pub struct Account {
     pub id: Uuid,
     pub fullname: String,
 }
 
-impl User {
+impl Account {
     pub fn new(fullname: &str) -> Self {
-        User {
+        Account {
             id: Uuid::new_v4(),
             fullname: fullname.to_string(),
         }
@@ -22,7 +22,7 @@ impl User {
     }
 }
 
-impl fmt::Display for User {
+impl fmt::Display for Account {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Full name: {}", self.fullname)
     }

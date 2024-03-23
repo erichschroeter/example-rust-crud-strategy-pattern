@@ -2,15 +2,15 @@ use std::sync::{Arc, Mutex};
 
 use actix_web::{rt, web, HttpServer};
 use clap::ArgMatches;
-use common::User;
+use common::Account;
 use cor_args::{ArgHandler, ConfigHandler, DefaultHandler, EnvHandler, Handler};
 use log::{debug, info};
 use tera::Tera;
 
 #[cfg(feature = "csv")]
-use crate::crud::csv::CsvUserStore;
+use crate::crud::csv::CsvAccountStore;
 #[cfg(feature = "sqlite")]
-use crate::crud::sqlite::SqliteUserStore;
+use crate::crud::sqlite::SqliteAccountStore;
 use crate::{
     cfg::{default_config_path, default_template_glob, Cfg},
     crud::Crud,
@@ -18,21 +18,21 @@ use crate::{
 };
 
 #[cfg(feature = "csv")]
-fn create_store(cfg: &Cfg) -> Mutex<CsvUserStore> {
+fn create_store(cfg: &Cfg) -> Mutex<CsvAccountStore> {
     let storage_path = cfg
         .storage_path
         .to_owned()
-        .unwrap_or("users.csv".to_string());
-    Mutex::new(CsvUserStore::new(&storage_path))
+        .unwrap_or("accounts.csv".to_string());
+    Mutex::new(CsvAccountStore::new(&storage_path))
 }
 
 #[cfg(feature = "sqlite")]
-fn create_store(cfg: &Cfg) -> Mutex<SqliteUserStore> {
+fn create_store(cfg: &Cfg) -> Mutex<SqliteAccountStore> {
     let storage_path = cfg
         .storage_path
         .to_owned()
-        .unwrap_or("users.sqlite".to_string());
-    Mutex::new(SqliteUserStore::new(&storage_path))
+        .unwrap_or("accounts.sqlite".to_string());
+    Mutex::new(SqliteAccountStore::new(&storage_path))
 }
 
 fn run_http_server(cfg: Cfg) -> std::io::Result<()> {
@@ -40,15 +40,15 @@ fn run_http_server(cfg: Cfg) -> std::io::Result<()> {
     let cfg_clone = cfg.clone();
     let tera = Tera::new(&cfg.template_glob).unwrap();
     let server = HttpServer::new(move || {
-        let storage: Arc<Mutex<dyn Crud<User>>> = Arc::new(create_store(&cfg_clone));
+        let storage: Arc<Mutex<dyn Crud<Account>>> = Arc::new(create_store(&cfg_clone));
         actix_web::App::new()
             .app_data(web::Data::new(tera.clone()))
             .app_data(web::Data::from(storage))
             .route("/", web::get().to(crate::route::index::index))
-            .route("/user", web::get().to(crate::route::user::list_users))
+            .route("/account", web::get().to(crate::route::account::list_accounts))
             .route(
-                "/user/create",
-                web::post().to(crate::route::user::create_user),
+                "/account/create",
+                web::post().to(crate::route::account::create_account),
             )
     })
     .bind((cfg.address.as_str(), cfg.port));
@@ -139,7 +139,7 @@ pub fn serve(matches: &ArgMatches) {
                     .next(Box::new(DefaultHandler::new(
                         std::env::current_dir()
                             .unwrap_or_default()
-                            .join("users.csv")
+                            .join("accounts.csv")
                             .display()
                             .to_string()
                             .as_str(),
@@ -163,7 +163,7 @@ pub fn serve(matches: &ArgMatches) {
                     .next(Box::new(DefaultHandler::new(
                         std::env::current_dir()
                             .unwrap_or_default()
-                            .join("users.sqlite")
+                            .join("accounts.sqlite")
                             .display()
                             .to_string()
                             .as_str(),

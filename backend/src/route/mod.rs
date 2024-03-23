@@ -1,7 +1,7 @@
 use std::env;
 
 pub mod index;
-pub mod user;
+pub mod account;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[cfg(feature = "csv")]

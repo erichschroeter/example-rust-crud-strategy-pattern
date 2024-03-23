@@ -9,7 +9,7 @@ The `common` project contains code common between the `frontend` and `backend` p
 The `backend` handles storing the CRUD storage.
 
 ### Frontend
-The `frontend` handles the user interface to the `backend`.
+The `frontend` handles the account interface to the `backend`.
 [Tera](https://keats.github.io/tera/) is used for server-side templating web pages.
 
 # Building
@@ -31,7 +31,7 @@ cargo build
 ls target/debug/backend backend/templates/* | entr -rz cargo run -- -v trace serve
 ```
 
-#### Create a user
+#### Create a account
 ```bash
-curl -X POST -H "Content-Type: application/json" --data '{"fullname":"Erich Schroeter"}' http://127.0.0.1:8080/user/create
+curl -X POST -H "Content-Type: application/json" --data '{"fullname":"Erich Schroeter"}' http://127.0.0.1:8080/account/create
 ```

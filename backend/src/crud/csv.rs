@@ -4,40 +4,39 @@ use std::{
     path::Path,
 };
 
-use common::User;
-use uuid::Uuid;
+use common::Account;
 
 use super::{Crud, CrudError};
 
-struct CsvUser {
+struct CsvAccount {
     line: u64,
-    user: User,
+    account: Account,
 }
 
-impl From<String> for CsvUser {
+impl From<String> for CsvAccount {
     fn from(value: String) -> Self {
-        CsvUser {
+        CsvAccount {
             line: 0,
-            user: User::new(&value),
+            account: Account::new(&value),
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct CsvUserStore {
+pub struct CsvAccountStore {
     filename: String,
 }
 
-impl CsvUserStore {
+impl CsvAccountStore {
     pub fn new(filename: &str) -> Self {
-        CsvUserStore {
+        CsvAccountStore {
             filename: filename.to_string(),
         }
     }
 }
 
-impl Crud<User> for CsvUserStore {
-    fn create(&mut self, user: &User) -> super::Result<()> {
+impl Crud<Account> for CsvAccountStore {
+    fn create(&mut self, account: &Account) -> super::Result<()> {
         let mut file = if Path::new(&self.filename).exists() {
             OpenOptions::new()
                 .write(true)
@@ -51,14 +50,14 @@ impl Crud<User> for CsvUserStore {
                 .open(&self.filename)
                 .unwrap()
         };
-        if let Err(_) = writeln!(file, "{}", user.fullname) {
+        if let Err(_) = writeln!(file, "{}", account.fullname) {
             Err(CrudError::UnknownError)
         } else {
             Ok(())
         }
     }
 
-    fn read_all(&self) -> super::Result<Vec<User>> {
+    fn read_all(&self) -> super::Result<Vec<Account>> {
         log::debug!("Reading Users from '{}'", &self.filename);
         let file = if Path::new(&self.filename).exists() {
             OpenOptions::new().read(true).open(&self.filename).unwrap()
@@ -67,37 +66,38 @@ impl Crud<User> for CsvUserStore {
         };
 
         let reader = BufReader::new(file);
-        let mut users = Vec::new();
+        let mut accounts = Vec::new();
 
         for line in reader.lines() {
             if let Ok(fullname) = line {
-                users.push(User::new(&fullname));
+                accounts.push(Account::new(&fullname));
             }
         }
-        log::debug!("Read {} Users from '{}'", users.len(), &self.filename);
-        Ok(users)
+        log::debug!("Read {} Users from '{}'", accounts.len(), &self.filename);
+        Ok(accounts)
     }
     
-    fn update(&mut self, item: &User) -> super::Result<()> {
+    fn update(&mut self, item: &Account) -> super::Result<()> {
         let item = update_line(&self.filename, item)?;
+        log::debug!("Updated line {} in {}", item.line, self.filename);
         Ok(())
     }
 
-    fn delete(&mut self, item: &User) -> super::Result<()> {
+    fn delete(&mut self, item: &Account) -> super::Result<()> {
         delete_line(&self.filename, &item)
     }
 }
 
-// fn find_entry(path: &str, uuid: Uuid) -> super::Result<CsvUser> {
+// fn find_entry(path: &str, uuid: Uuid) -> super::Result<CsvAccount> {
 //     let file = File::open(path)?;
 //     let reader = BufReader::new(&file);
 //     let mut line_count = 0;
 //     for line in reader.lines() {
 //         let line = line?;
 //         if line.contains(&uuid.to_string()) {
-//             return Ok(CsvUser {
+//             return Ok(CsvAccount {
 //                 line: line_count,
-//                 user: User::new(&line),
+//                 account: Account::new(&line),
 //             });
 //         }
 //         line_count += 1;
@@ -105,7 +105,7 @@ impl Crud<User> for CsvUserStore {
 //     Err(CrudError::NotFound)
 // }
 
-fn update_line(path: &str, user: &User) -> super::Result<CsvUser> {
+fn update_line(path: &str, account: &Account) -> super::Result<CsvAccount> {
     // Open file in read mode
     let file = File::open(path)?;
     let reader = BufReader::new(&file);
@@ -117,10 +117,10 @@ fn update_line(path: &str, user: &User) -> super::Result<CsvUser> {
     let mut line_updated = 0;
     for line in reader.lines() {
         let line = line?;
-        if !line.contains(&user.id.to_string()) {
+        if !line.contains(&account.id.to_string()) {
             writeln!(tempfile, "{}", line)?;
         } else {
-            writeln!(tempfile, "{}", user.to_csv())?;
+            writeln!(tempfile, "{}", account.to_csv())?;
             line_updated = line_count;
             log::debug!("Updated line {}", line_count)
         }
@@ -131,13 +131,13 @@ fn update_line(path: &str, user: &User) -> super::Result<CsvUser> {
     file.seek(std::io::SeekFrom::Start(0))?;
     std::io::copy(&mut File::open(&tempfile_path)?, &mut file)?;
     std::fs::remove_file(&tempfile_path)?;
-    Ok(CsvUser {
+    Ok(CsvAccount {
         line: line_updated,
-        user: user.to_owned(),
+        account: account.to_owned(),
     })
 }
 
-fn delete_line(path: &str, user: &User) -> super::Result<()> {
+fn delete_line(path: &str, account: &Account) -> super::Result<()> {
     // Open file in read mode
     let file = File::open(path)?;
     let reader = BufReader::new(&file);
@@ -148,7 +148,7 @@ fn delete_line(path: &str, user: &User) -> super::Result<()> {
     let mut line_count = 0;
     for line in reader.lines() {
         let line = line?;
-        if !line.contains(&user.id.to_string()) {
+        if !line.contains(&account.id.to_string()) {
             writeln!(tempfile, "{}", line)?;
         } else {
             log::debug!("Deleted line {}", line_count)
@@ -170,7 +170,7 @@ mod tests {
     use tempfile::tempdir;
     use uuid::uuid;
 
-    use super::CsvUserStore;
+    use super::CsvAccountStore;
 
     use super::*;
 
@@ -198,19 +198,19 @@ mod tests {
     #[test]
     fn create_creates_file_when_not_exist() {
         let dir = tempdir().expect("Failed to create temp directory");
-        let csv = dir.path().join("users.csv");
-        let mut store = CsvUserStore::new(csv.display().to_string().as_str());
+        let csv = dir.path().join("accounts.csv");
+        let mut store = CsvAccountStore::new(csv.display().to_string().as_str());
         store
-            .create(&User::new("Test User"))
-            .expect("Failed to create new User");
+            .create(&Account::new("Test Account"))
+            .expect("Failed to create new Account");
         assert!(csv.exists());
     }
 
     #[test]
     fn read_all_does_not_create_file_when_not_exist() {
         let dir = tempdir().expect("Failed to create temp directory");
-        let csv = dir.path().join("users.csv");
-        let store = CsvUserStore::new(csv.display().to_string().as_str());
+        let csv = dir.path().join("accounts.csv");
+        let store = CsvAccountStore::new(csv.display().to_string().as_str());
         store.read_all().expect("Failed to read Users");
         assert!(!csv.exists());
     }
@@ -218,66 +218,66 @@ mod tests {
     #[test]
     fn read_all_returns_none_when_file_not_exist() {
         let dir = tempdir().expect("Failed to create temp directory");
-        let csv = dir.path().join("users.csv");
-        let store = CsvUserStore::new(csv.display().to_string().as_str());
-        let users = store.read_all().expect("Failed to read Users");
-        assert_eq!(users.len(), 0);
+        let csv = dir.path().join("accounts.csv");
+        let store = CsvAccountStore::new(csv.display().to_string().as_str());
+        let accounts = store.read_all().expect("Failed to read Users");
+        assert_eq!(accounts.len(), 0);
     }
 
     #[test]
     fn read_all_returns_one_of_one() {
         let dir = tempdir().expect("Failed to create temp directory");
-        let csv_path = dir.path().join("users.csv");
+        let csv_path = dir.path().join("accounts.csv");
         let mut csv =
             File::create(&csv_path).expect(&format!("Failed to create {}", &csv_path.display()));
-        writeln!(csv, "Test User").expect(&format!("Failed to write to {}", &csv_path.display()));
-        let store = CsvUserStore::new(csv_path.display().to_string().as_str());
-        let users = store.read_all().expect("Failed to read Users");
-        assert_eq!(users.len(), 1);
-        assert_eq!(users.get(0).unwrap().fullname, "Test User");
+        writeln!(csv, "Test Account").expect(&format!("Failed to write to {}", &csv_path.display()));
+        let store = CsvAccountStore::new(csv_path.display().to_string().as_str());
+        let accounts = store.read_all().expect("Failed to read Users");
+        assert_eq!(accounts.len(), 1);
+        assert_eq!(accounts.get(0).unwrap().fullname, "Test Account");
     }
 
     #[test]
     fn update_one_of_one() {
         let dir = tempdir().expect("Failed to create temp directory");
-        let csv_path = dir.path().join("users.csv");
+        let csv_path = dir.path().join("accounts.csv");
         let mut csv =
             File::create(&csv_path).expect(&format!("Failed to create {}", &csv_path.display()));
-        writeln!(csv, "67e55044-10b1-426f-9247-bb680e5fe0c8,Test User").expect(&format!("Failed to write to {}", &csv_path.display()));
-        let mut store = CsvUserStore::new(csv_path.display().to_string().as_str());
-        let mut user_updated = User::new("Modified User");
+        writeln!(csv, "67e55044-10b1-426f-9247-bb680e5fe0c8,Test Account").expect(&format!("Failed to write to {}", &csv_path.display()));
+        let mut store = CsvAccountStore::new(csv_path.display().to_string().as_str());
+        let mut user_updated = Account::new("Modified Account");
         user_updated.id = uuid::uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8");
-        store.update(&user_updated).expect("Failed to update User");
+        store.update(&user_updated).expect("Failed to update Account");
         let actual_line = read_line(csv_path.display().to_string().as_str(), 0).expect(&format!("Failed to read line 0 from {}", &csv_path.display()));
-        assert_eq!(actual_line, "67e55044-10b1-426f-9247-bb680e5fe0c8,Modified User");
+        assert_eq!(actual_line, "67e55044-10b1-426f-9247-bb680e5fe0c8,Modified Account");
     }
 
     #[test]
     fn update_one_of_two() {
         let dir = tempdir().expect("Failed to create temp directory");
-        let csv_path = dir.path().join("users.csv");
+        let csv_path = dir.path().join("accounts.csv");
         let mut csv =
             File::create(&csv_path).expect(&format!("Failed to create {}", &csv_path.display()));
-        writeln!(csv, "67e55044-10b1-426f-9247-bb680e5fe0c8,Test User 1\n67e55044-10b1-426f-9247-bb680e5fe0c9,Test User 2").expect(&format!("Failed to write to {}", &csv_path.display()));
-        let mut store = CsvUserStore::new(csv_path.display().to_string().as_str());
-        let mut user_updated = User::new("Modified User 1");
+        writeln!(csv, "67e55044-10b1-426f-9247-bb680e5fe0c8,Test Account 1\n67e55044-10b1-426f-9247-bb680e5fe0c9,Test Account 2").expect(&format!("Failed to write to {}", &csv_path.display()));
+        let mut store = CsvAccountStore::new(csv_path.display().to_string().as_str());
+        let mut user_updated = Account::new("Modified Account 1");
         user_updated.id = uuid::uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8");
-        store.update(&user_updated).expect("Failed to update User");
+        store.update(&user_updated).expect("Failed to update Account");
         let actual_line = read_line(csv_path.display().to_string().as_str(), 0).expect(&format!("Failed to read line 0 from {}", &csv_path.display()));
-        assert_eq!(actual_line, "67e55044-10b1-426f-9247-bb680e5fe0c8,Modified User 1");
+        assert_eq!(actual_line, "67e55044-10b1-426f-9247-bb680e5fe0c8,Modified Account 1");
     }
 
     #[test]
     fn delete_one_of_one() {
         let dir = tempdir().expect("Failed to create temp directory");
-        let csv_path = dir.path().join("users.csv");
+        let csv_path = dir.path().join("accounts.csv");
         let mut csv =
             File::create(&csv_path).expect(&format!("Failed to create {}", &csv_path.display()));
-        writeln!(csv, "67e55044-10b1-426f-9247-bb680e5fe0c8,Test User").expect(&format!("Failed to write to {}", &csv_path.display()));
-        let mut store = CsvUserStore::new(csv_path.display().to_string().as_str());
-        let mut user = User::new("Test User");
-        user.id = uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8");
-        store.delete(&user).expect("Failed to delete User");
+        writeln!(csv, "67e55044-10b1-426f-9247-bb680e5fe0c8,Test Account").expect(&format!("Failed to write to {}", &csv_path.display()));
+        let mut store = CsvAccountStore::new(csv_path.display().to_string().as_str());
+        let mut account = Account::new("Test Account");
+        account.id = uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8");
+        store.delete(&account).expect("Failed to delete Account");
         assert_eq!(
             count_lines(csv_path.display().to_string().as_str())
                 .expect(&format!("Failed to count lines of {}", &csv_path.display())),
@@ -288,15 +288,15 @@ mod tests {
     #[test]
     fn delete_one_of_two() {
         let dir = tempdir().expect("Failed to create temp directory");
-        let csv_path = dir.path().join("users.csv");
+        let csv_path = dir.path().join("accounts.csv");
         let mut csv =
             File::create(&csv_path).expect(&format!("Failed to create {}", &csv_path.display()));
-        writeln!(csv, "67e55044-10b1-426f-9247-bb680e5fe0c8,Test User 1\n67e55044-10b1-426f-9247-bb680e5fe0c9,Test User 2")
+        writeln!(csv, "67e55044-10b1-426f-9247-bb680e5fe0c8,Test Account 1\n67e55044-10b1-426f-9247-bb680e5fe0c9,Test Account 2")
             .expect(&format!("Failed to write to {}", &csv_path.display()));
-        let mut store = CsvUserStore::new(csv_path.display().to_string().as_str());
-        let mut user = User::new("Test User 1");
-        user.id = uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8");
-        store.delete(&user).expect("Failed to delete User");
+        let mut store = CsvAccountStore::new(csv_path.display().to_string().as_str());
+        let mut account = Account::new("Test Account 1");
+        account.id = uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8");
+        store.delete(&account).expect("Failed to delete Account");
         assert_eq!(
             count_lines(csv_path.display().to_string().as_str())
                 .expect(&format!("Failed to count lines of {}", &csv_path.display())),
